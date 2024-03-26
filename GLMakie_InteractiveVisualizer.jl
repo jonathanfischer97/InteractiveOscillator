@@ -1,17 +1,9 @@
 #< IMPORTS >#
-using DrWatson
-@quickactivate "GeometricallyTunableOscillator"
-# include(srcdir("OscTools", "OscTools.jl"))
-include("/home/jfisch27/Desktop/ThesisStuff/GeometricallyTunableOscillator/src/OscTools/OscTools.jl")
-
-using .OscTools
-
 begin 
     using DataFrames
     using CSV
     using StatsBase
     using CategoricalArrays
-    using DataFramesMeta
     using ModelingToolkit
     using OrdinaryDiffEq
 end
@@ -82,28 +74,6 @@ function make_ode_solver(prob::ODEProblem)
     return solver
 end
 
-function fitness_function(fftData)
-
-    sliced_fftData = @view fftData[1:cld(length(fftData), 2)]
-
-    #* get the indexes of the peaks in the fft
-    fft_peakindexes, fft_peakvals = OscTools.findmaxpeaks(sliced_fftData) 
-
-    #* if there is no signal in the frequency domain, return 0.0s
-    if isempty(fft_peakvals)
-        return [0.0, 0.0]
-    end
-
-    #* get the summed standard deviation of the peaks in frequency domain
-    standard_deviation = OscTools.getSTD(fft_peakindexes, sliced_fftData) 
-
-    #* get the summed difference between the first and last peaks in frequency domain
-    sum_diff = OscTools.getDif(fft_peakvals) 
-    # sum_diff = maximum(fft_peakvals)
-
-    #* fitness is the sum of the standard deviation and the difference between the first and last peaks
-    return [sum_diff, standard_deviation] .* 1e4
-end
 
 
 #- Plots interactive Makie timeseries plot with sliders for each parameter
@@ -291,43 +261,10 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
         update_function(observables)
     end
 
-    fft_Amem = lift(Amem) do Amem
-        return OscTools.getFrequencies(Amem; jump = 1)
-    end
-
-    diff_and_std_label = lift(fft_Amem) do fft_Amem
-        difs, stds = round.(fitness_function(fft_Amem);digits = 2)
-        fitness = round(difs + stds; digits = 2)
-        return "Diff: $(difs)\nSTD: $(stds)\nFitness: $fitness"
-    end
-    Label(fig[4, 1], diff_and_std_label, fontsize = 25, color = :black, valign = :top)
-
     ln = lines!(time_ax, 0.0:0.1:2000.0, Amem, color = regime_color, linewidth = 3)
-    lines!(fft_ax, fft_Amem, color = regime_color, linewidth = 3)
     fig
 end
 
 plot_interactive_parameters_timeseries(df[!, Not(:Period, :Amplitude)])
 
 
-
-
-
-
-ind = [1.18902, 19.37129, 0.12065, 0.00216, 0.01814, 0.02333, 0.06029, 9.75757, 0.12002, 0.00624, 0.04642, 0.02592, 10000.0, 8.04727, 2.05306, 0.04264, 1.51217]
-
-solver = make_ode_solver(make_ODEProblem((;)))
-
-sol = solver(ind) |> compute_Amem
-
-fftData = OscTools.getFrequencies(sol;jump = 1)
-
-fitness = fitness_function(fftData[2:end])
-
-fft_peakindexes, fft_peakvals = OscTools.findmaxpeaks(fftData) 
-
-sum(abs.(diff(fft_peakvals)))/length(fft_peakvals)
-
-
-OscTools.getDif(fft_peakvals)
-OscTools.getSTD(fft_peakindexes, fftData)
