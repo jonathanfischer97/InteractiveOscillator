@@ -166,7 +166,7 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
     Label(fig[2, 1:2], "Parameters", fontsize = 25)
     #* Make slider grid with slider for each parameter in ind 
     parameter_sliders = SliderGrid(fig[3,1:2],
-                                ((label = label, range = range(minimum(df[!,label]), param_ub[i], 100000), startvalue = df[1, label]) for (i, label) in enumerate(parameter_names))...)
+                                ((label = label, range = range(0.0, param_ub[i], 100000), startvalue = df[1, label]) for (i, label) in enumerate(parameter_names))...)
 
     # Adjust DF range 
     parameter_sliders.sliders[13].range = range(0.0, 10000.0, 100000)
