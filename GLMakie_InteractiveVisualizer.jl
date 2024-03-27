@@ -2,40 +2,42 @@
 begin 
     using DataFrames
     using CSV
-    using StatsBase
-    using CategoricalArrays
+    # using StatsBase
     using ModelingToolkit
     using OrdinaryDiffEq
 end
 
-include("/home/jfisch27/Desktop/ThesisStuff/GeometricallyTunableOscillator/src/Kd_analysis_functions.jl")
+# include("/home/jfisch27/Desktop/ThesisStuff/GeometricallyTunableOscillator/src/Kd_analysis_functions.jl")
 
-using ColorSchemes
+# using ColorSchemes
 #> IMPORTS <#
 
 
-#* Load and process the data
-function load_data()
-    path1 = datadir("full_df.csv")
-    df1 = load_and_process_genotype_data(path1)
+# #* Load and process the data
+# function load_data()
+#     path1 = datadir("full_df.csv")
+#     df1 = load_and_process_genotype_data(path1)
 
-    path2 = datadir("KmLK_lt_KmLP_results.csv")
-    df2 = CSV.read(path2, DataFrame)[!, Between(:per, :A)] |> process_genotype_data
+#     path2 = datadir("KmLK_lt_KmLP_results.csv")
+#     df2 = CSV.read(path2, DataFrame)[!, Between(:per, :A)] |> process_genotype_data
 
-    # path2 = datadir("ROCKFISH_DATA", "3Fixed", "PopSize_15000", "L_K_P", "combined_df.csv")
-    # df2 = load_and_process_genotype_data(path2)
-    # path3 = datadir("ROCKFISH_DATA", "3Fixed", "PopSize_15000", "L_K_A", "combined_df.csv")
-    # df3 = load_and_process_genotype_data(path3)
+#     # path2 = datadir("ROCKFISH_DATA", "3Fixed", "PopSize_15000", "L_K_P", "combined_df.csv")
+#     # df2 = load_and_process_genotype_data(path2)
+#     # path3 = datadir("ROCKFISH_DATA", "3Fixed", "PopSize_15000", "L_K_A", "combined_df.csv")
+#     # df3 = load_and_process_genotype_data(path3)
     
-    return vcat(df1, df2)
-end
+#     return vcat(df1, df2)
+# end
 
-df = load_data()
+# df = load_data()
 
-df.A_L_ratio = df.A ./ df.L
-df.Km_ratio = df.Kmᴸᴷ ./ df.Kmᴸᴾ
 
-df.DF .= unwrap.(df.DF)
+
+
+
+data_url = "https://www.icloud.com/iclouddrive/028VjPCL52hzrJUHdd2TCKr1A#alldata.csv"
+
+df = CSV.read(download(data_url), DataFrame) 
 
 
 
