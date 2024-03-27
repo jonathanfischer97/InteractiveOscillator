@@ -8,9 +8,6 @@ https://github.com/JuliaLang/juliaup/blob/61c09c460ca3a150e542522be8b8b8a5041e71
 `git clone git@github.com:jonathanfischer97/InteractiveOscillator.git`
 
 
-### Download solution data CSV
-Use this Google Drive link, and move the CSV file into the cloned repository.
-
 
 ### Instantiate Julia environment
 In order to reproduce the necessary package environment, first:
