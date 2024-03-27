@@ -16,5 +16,5 @@ In order to reproduce the necessary package environment, first:
 
 
 # Running interactive visualization
-To open the interactive visualization window, run the main script with 'julia --project visualizer.jl`.
+To open the interactive visualization window, run the main script with `julia --project visualizer.jl`.
 
