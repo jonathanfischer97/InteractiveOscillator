@@ -17,4 +17,6 @@ In order to reproduce the necessary package environment, first:
 
 # Running interactive visualization
 To open the interactive visualization window, run the main script with `julia --project visualizer.jl`.
+This will open up a separate window that looks like this:![image](https://github.com/jonathanfischer97/InteractiveOscillator/assets/69228453/63623bb3-da0c-435b-ad1f-91b9384c422e)
+
 
