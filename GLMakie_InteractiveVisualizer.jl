@@ -2,44 +2,28 @@
 begin 
     using DataFrames
     using CSV
-    # using StatsBase
+    using Catalyst
     using ModelingToolkit
     using OrdinaryDiffEq
+    using FFTW
+    using StatsBase
 end
 
-# include("/home/jfisch27/Desktop/ThesisStuff/GeometricallyTunableOscillator/src/Kd_analysis_functions.jl")
 
-# using ColorSchemes
+include("/Users/jonathanfischer/Desktop/ThesisStuff/GeometricallyTunableOscillator/InteractiveOscillator/full_model.jl")
+include("/Users/jonathanfischer/Desktop/ThesisStuff/GeometricallyTunableOscillator/InteractiveOscillator/ode_solving_functions.jl")
+include("/Users/jonathanfischer/Desktop/ThesisStuff/GeometricallyTunableOscillator/InteractiveOscillator/custom_peakfinder.jl")
+include("/Users/jonathanfischer/Desktop/ThesisStuff/GeometricallyTunableOscillator/InteractiveOscillator/fitness_function_helpers.jl")
 #> IMPORTS <#
 
 
-# #* Load and process the data
-# function load_data()
-#     path1 = datadir("full_df.csv")
-#     df1 = load_and_process_genotype_data(path1)
+# using Downloads
 
-#     path2 = datadir("KmLK_lt_KmLP_results.csv")
-#     df2 = CSV.read(path2, DataFrame)[!, Between(:per, :A)] |> process_genotype_data
+# data_url = "https://drive.google.com/file/d/1ZgkrAB1kp6oMArTVfdYdqd_oMdJeat6m/uc?export=download"
+# data = Downloads.download(data_url)
+# df = CSV.File(data)
 
-#     # path2 = datadir("ROCKFISH_DATA", "3Fixed", "PopSize_15000", "L_K_P", "combined_df.csv")
-#     # df2 = load_and_process_genotype_data(path2)
-#     # path3 = datadir("ROCKFISH_DATA", "3Fixed", "PopSize_15000", "L_K_A", "combined_df.csv")
-#     # df3 = load_and_process_genotype_data(path3)
-    
-#     return vcat(df1, df2)
-# end
-
-# df = load_data()
-
-
-
-
-
-data_url = "https://www.icloud.com/iclouddrive/028VjPCL52hzrJUHdd2TCKr1A#alldata.csv"
-
-df = CSV.read(download(data_url), DataFrame) 
-
-
+df = CSV.read("/Users/jonathanfischer/Desktop/ThesisStuff/GeometricallyTunableOscillator/data/smalldata.csv", DataFrame)
 
 
 
@@ -56,7 +40,7 @@ function make_ode_solver(prob::ODEProblem)
 
     num_tunable_parameters = length(tunable_parameters(osys; default = true))
 
-    saved_idxs = OscTools.get_Amem_indices(osys)
+    saved_idxs = get_Amem_indices(osys)
 
     function solver(input)::ODESolution
 
@@ -78,6 +62,29 @@ end
 
 
 
+function get_fitness(fftData)
+    #* get the indexes of the peaks in the fft
+    fft_peakindexes, fft_peakvals = findmaxpeaks(fftData) 
+
+    #* if there is no signal in the frequency domain, return 0.0s
+    if isempty(fft_peakvals)
+        return [0.0, 0.0]
+    end
+
+    normalized_peakvals = fft_peakvals ./ maximum(fft_peakvals)
+    sum_of_peakvals = sum(normalized_peakvals)
+
+    #* get the summed standard deviation of the peaks in frequency domain
+    standard_deviation = getSTD(fft_peakindexes, fftData) / sum_of_peakvals
+
+    #* get the summed difference between the first and last peaks in frequency domain
+    # sum_diff = OscTools.getDif(fft_peakvals) 
+    sum_diff = maximum(fft_peakvals) / sum_of_peakvals
+
+    #* fitness is the sum of the standard deviation and the difference between the first and last peaks
+    return [sum_diff, standard_deviation] #.* 1e2
+end
+
 #- Plots interactive Makie timeseries plot with sliders for each parameter
 function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
     #* Make ODEProblem from ReactionSystem
@@ -87,38 +94,36 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
     ode_solver = make_ode_solver(odeprob);
 
 
-    fig = Figure(; size = (1400, 1000));
-    time_ax = Axis(fig[1, 1:2], 
-                xlabel = "Time (s)", xlabelsize = 20, 
-                ylabel = "AP2 Membrane Localization", ylabelsize = 20, 
-                limits = ((0, 2000), (0, 1)))
+    fig = Figure(; size = (1200, 900));
+    time_ax = Axis(fig[1, 1:3], title = "ODE Solution",
+                xlabel = "Time (s)", xlabelsize = 18, 
+                ylabel = "AP2 Membrane Localization", ylabelsize = 12, 
+                limits = ((0.0, 2000.0), (0.0, 1.0)))
 
-    fft_ax = Axis(fig[1, 3:4], 
-                xlabel = "Frequency (Hz)", xlabelsize = 20, 
-                ylabel = "Power", ylabelsize = 20,
-                limits = ((2, 500), nothing))
+    fft_ax = Axis(fig[1, 4], title = "FFT",
+                xlabel = "Period (s)", xlabelsize = 18, xtickformat = values -> ["$(round(Int, cld(1, value)))" for value in values], xscale = log10,
+                ylabel = "Power", ylabelsize = 18,
+                limits = ((0.0001, 1.0), nothing))
 
 
     #- Menu to select different regime groupings of the DataFrame
-    subset_functions = [
-        (df) -> df,
-        (df) -> df[(df.K .> df.P) .& (df.Kmᴸᴷ .> df.Kmᴸᴾ), :],
-        (df) -> df[(df.K .> df.P) .& (df.Kmᴸᴷ .< df.Kmᴸᴾ), :],
-        (df) -> df[(df.K .< df.P) .& (df.Kmᴸᴷ .> df.Kmᴸᴾ), :],
-        (df) -> df[(df.K .< df.P) .& (df.Kmᴸᴷ .< df.Kmᴸᴾ), :],
-        (df) -> df[(df.A .> df.L), :],
-        (df) -> df[(df.A .< df.L), :]
+    subset_functions = @views [
+        df[(df.K .> df.P) .& (df.Kmᴸᴷ .> df.Kmᴸᴾ), :],
+        df[(df.K .> df.P) .& (df.Kmᴸᴷ .< df.Kmᴸᴾ), :],
+        df[(df.K .< df.P) .& (df.Kmᴸᴷ .> df.Kmᴸᴾ), :],
+        df[(df.K .< df.P) .& (df.Kmᴸᴷ .< df.Kmᴸᴾ), :]
     ]
-    option_labels = ["All", "K > P, Kmᴸᴷ > Kmᴸᴾ", "K > P, Kmᴸᴷ < Kmᴸᴾ", "K < P, Kmᴸᴷ > Kmᴸᴾ", "K < P, Kmᴸᴷ < Kmᴸᴾ", "A > L", "A < L"]
+    option_labels = ["K > P, Kmᴸᴷ > Kmᴸᴾ", "K > P, Kmᴸᴷ < Kmᴸᴾ", "K < P, Kmᴸᴷ > Kmᴸᴾ", "K < P, Kmᴸᴷ < Kmᴸᴾ"]
     fig[3, 3:4] = menu_grid = GridLayout()
     menu_label = Label(menu_grid[1, 1:2], "Regime", fontsize = 25, color = :black, valign = :top)
-    menu = Menu(menu_grid[2, 1:2], options = zip(option_labels, subset_functions), default = "All", valign = :center)
+    menu = Menu(menu_grid[2, 1:2], options = zip(option_labels, subset_functions), default = "K > P, Kmᴸᴷ > Kmᴸᴾ", valign = :center)
 
     #* Technically just a subsetting function, because making an Observable DataFrame behaves weirdly
-    df_subsetter = Observable{Any}(subset_functions[1])
+    # df_subsetter = Observable{Any}(subset_functions[1])
+    data = Observable{Any}(subset_functions[1])
 
     on(menu.selection) do selection
-        df_subsetter[] = selection
+        data[] = selection
     end
     notify(menu.selection)
 
@@ -127,23 +132,23 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
     
     #- Row slider
     #* Make row slider to cycle through the dataframe
-    row_slider = Slider(fig[5, 1:4], range = 1:1:500, startvalue = 1, horizontal = true, color_inactive = :pink, color_active = :red, color_active_dimmed = :pink)
+    row_slider = Slider(fig[5, 1:4], range = 1:1:1000, startvalue = 1, horizontal = true, color_inactive = :pink, color_active = :red, color_active_dimmed = :pink)
 
-    row_slider_label = lift(row_slider.value, df_subsetter) do rownumber, subsetter
-        n_data = nrow(subsetter(df))
-        return "Row $(rownumber)/$(n_data)"
+    row_slider_label = lift(row_slider.value) do rownumber
+        # n_data = nrow(subsetter(df))
+        return "Row $(rownumber)/1000"
     end 
 
     #* Label for row slider
     Label(fig[6, 1:4], row_slider_label, fontsize = 20, color = :black)
 
     #* Make observable for the row number, returns vector of input parameters
-    row = lift(row_slider.value, df_subsetter) do rownumber, subsetter
-        data = subsetter(df)
-        if isempty(data)
+    row = lift(row_slider.value) do rownumber
+        # data = subsetter(df)
+        if isempty(df)
             return zeros(17)
         else
-            return collect(Float64, data[rownumber, Between(:kfᴸᴬ, :A)])
+            return collect(Float64, df[rownumber, Between(:kfᴸᴬ, :A)])
         end
     end
 
@@ -156,19 +161,20 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
     end
 
 
-
-
     slider_labels = names(df[!, Between(:kfᴸᴬ, :A)])
     parameter_names = slider_labels[1:13]
     species_names = slider_labels[14:end]
     lb, ub = get_tunable_bounds(odeprob.f.sys)
-    param_ub = ub[1:13]
+    param_lb, param_ub = lb[1:13], ub[1:13]
 
     #- Parameter value sliders
+    # fig[3, 1:2] = parameter_slider_grid = GridLayout()
+
+    # Label(parameter_slider_grid[1, 1:2], "Parameters", fontsize = 25)
     Label(fig[2, 1:2], "Parameters", fontsize = 25)
     #* Make slider grid with slider for each parameter in ind 
     parameter_sliders = SliderGrid(fig[3,1:2],
-                                ((label = label, range = range(0.0, param_ub[i], 100000), startvalue = df[1, label]) for (i, label) in enumerate(parameter_names))...)
+                                ((label = label, range = range(param_lb[i], param_ub[i], 100000), startvalue = df[1, label]) for (i, label) in enumerate(parameter_names))...)
 
     # Adjust DF range 
     parameter_sliders.sliders[13].range = range(0.0, 10000.0, 100000)
@@ -183,10 +189,13 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
     parameter_slider_observables = [s.value for s in parameter_sliders.sliders]
 
     #- Initial conditions sliders
-    ic_ub = ub[14:end]
+    # fig[3, 3:4] = species_slider_grid = GridLayout()
+
+    ic_lb, ic_ub = lb[14:end], ub[14:end]
+    # Label(species_slider_grid[1, 1:2], "Initial Conditions", fontsize = 25)
     Label(fig[2, 3:4], "Initial Conditions", fontsize = 25)
     species_sliders = SliderGrid(fig[3,3:4],
-                                ((label = label, range = range(0.0, ic_ub[i], 100000), startvalue = df[1, label]) for (i, label) in enumerate(species_names))...; valign = :top)
+                                ((label = label, range = range(ic_lb[i], ic_ub[i], 100000), startvalue = df[1, label]) for (i, label) in enumerate(species_names))...; valign = :top)
 
     on(row) do row
         set_close_to!.(species_sliders.sliders, row[14:17])
@@ -236,16 +245,16 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
         return regime_color_dict[regime]
     end
 
-    regime_label = lift(regime) do regime
-        return join(regime, "\n")
-    end
+    # regime_label = lift(regime) do regime
+    #     return join(regime, "\n")
+    # end
 
     Km_vals_label = lift(Km_vals) do Km_vals
         return join(["Kmᴸᴷ: $(Km_vals[1])", "Kmᴸᴾ: $(Km_vals[2])"], "\n")
     end
 
 
-    Label(fig[4, 3], regime_label, fontsize = 25, color = regime_color, valign = :top)
+    # Label(fig[4, 3], regime_label, fontsize = 25, color = regime_color, valign = :top)
     Label(fig[4, 4], Km_vals_label, fontsize = 25, color = regime_color, valign = :top)
 
 
@@ -257,16 +266,40 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
         return compute_Amem(sol)
     end
 
+    testsol = ode_solver(collect(df[1, Between(:kfᴸᴬ, :A)]))
+    frequencies = [i*10/length(testsol) for i in 1:(length(testsol)/2)+1]
+    # periods = 1 ./ frequencies
+
 
     #* Make observable for AP2 Membrane Localization from calling the update function on the observable vector
     Amem = lift(observable_vector) do observables
         update_function(observables)
     end
 
-    ln = lines!(time_ax, 0.0:0.1:2000.0, Amem, color = regime_color, linewidth = 3)
+
+    function getFrequencies(timeseries::Vector{Float64})
+        rfft_result = rfft(timeseries)
+        norm_val = length(timeseries)/ 2 #* normalize by length of timeseries
+        abs.(rfft_result) ./ norm_val
+    end
+
+    fft_Amem = lift(Amem) do Amem
+        getFrequencies(Amem)
+    end
+
+    diff_and_std_label = lift(fft_Amem) do fft_Amem
+        difs, stds = round.(get_fitness(fft_Amem);digits = 5)
+        fitness = round(difs + stds; digits = 5)
+        return "Diff: $(difs)\nSTD: $(stds)\nFitness: $fitness"
+    end
+    Label(fig[4, 3], diff_and_std_label, fontsize = 25, color = :black, valign = :top)
+
+    ln = lines!(time_ax, testsol.t, Amem, color = regime_color, linewidth = 3)
+    lines!(fft_ax, frequencies, fft_Amem, color = regime_color, linewidth = 3)
     fig
 end
 
-plot_interactive_parameters_timeseries(df[!, Not(:Period, :Amplitude)])
+plot_interactive_parameters_timeseries(df)
+
 
 

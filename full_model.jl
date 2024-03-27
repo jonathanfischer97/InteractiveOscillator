@@ -87,16 +87,16 @@ function make_ODEProblem(fixed_inputs = (; DF = 1000.0); tend::Float64=2187.0)
 
     osys = convert(ODESystem, rn)
 
-    ODEProblem{true, SciMLBase.FullSpecialize}(osys, Float64[], tspan, jac = true)
+    ODEProblem(osys, Float64[], tspan, jac = true)
 end
 
 
 indexof(sym, syms)::Int = findfirst(isequal(sym), syms)
 
-get_variables(osys::T) where T<:AbstractSystem = vcat(parameters(osys), states(osys))
+get_variables(osys) = vcat(parameters(osys), states(osys))
 
 
-function get_tunable_variables(osys::T) where T<:AbstractSystem
+function get_tunable_variables(osys) 
     #* Get vector of all parameters and states
     variables = get_variables(osys)
 
@@ -107,7 +107,7 @@ function get_tunable_variables(osys::T) where T<:AbstractSystem
 end
 
 
-get_tunable_bounds(osys::T where T<:AbstractSystem) = getbounds(get_tunable_variables(osys))
+get_tunable_bounds(osys) = getbounds(get_tunable_variables(osys))
 
 
 function get_Amem_indices(sys::ODESystem)::Vector{Int}

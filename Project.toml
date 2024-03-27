@@ -1,0 +1,9 @@
+[deps]
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+Catalyst = "479239e8-5488-4da2-87a7-35f2df7eef83"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
+GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
+ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
+OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
