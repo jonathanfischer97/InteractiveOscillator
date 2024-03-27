@@ -1,11 +1,11 @@
-## Installation
+# Installation
 ### Install Julia 
 To install the latest version of Julia, follow the `juliaup` installation guide here:
 https://github.com/JuliaLang/juliaup/blob/61c09c460ca3a150e542522be8b8b8a5041e718a/README.md
 
 
 ### Clone this repository
-git@github.com:jonathanfischer97/InteractiveOscillator.git
+`git clone git@github.com:jonathanfischer97/InteractiveOscillator.git`
 
 
 ### Download solution data CSV
@@ -18,6 +18,6 @@ In order to reproduce the necessary package environment, first:
 2. Run `julia --project -e 'using Pkg; Pkg.instantiate()'`
 
 
-## Running interactive visualization
+# Running interactive visualization
 To open the interactive visualization window, run the main script with 'julia --project visualizer.jl`.
 
