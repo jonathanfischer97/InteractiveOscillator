@@ -79,7 +79,7 @@ end
 
 Construct `ODEProblem` from `ReactionSystem` model, give named tuple to set parameters.
 """
-function make_ODEProblem(fixed_inputs = (; DF = 1000.0); tend::Float64=2187.0)
+function make_ODEProblem(fixed_inputs = (; DF = 1000.0); tend::Float64=1968.2)
 
     rn = make_fullrn(fixed_inputs);
 

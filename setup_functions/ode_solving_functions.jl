@@ -34,6 +34,11 @@ function make_ode_solver(prob::ODEProblem)
     return solver
 end
 
+function make_ode_solver()
+    odeprob = make_ODEProblem((;))
+    make_ode_solver(odeprob)
+end
+
 
 
 

@@ -32,8 +32,28 @@ begin
 end
 #> IMPORTS <#
 
+# 3^9/10
 
+# odeprob = make_ODEProblem((;); tend = 1968.2);
 
+# ode_solver = make_ode_solver(odeprob);
+
+# df = load_data()
+
+# ind = collect(df[1, Between(:kfᴸᴬ, :A)])
+
+# using BenchmarkTools
+# @benchmark ode_solver($ind)
+
+# sol = ode_solver(ind)
+
+# sol[1,:]
+
+# sol[1,:]
+# Array(sol)
+# typeof(sol[1,:])
+# sol.u
+# lines(sol.t, sol)
 
 #- Plots interactive Makie timeseries plot with sliders for each parameter
 function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
@@ -48,7 +68,7 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
     time_ax = Axis(fig[1, 1:3], title = "ODE Solution",
                 xlabel = "Time (s)", xlabelsize = 18, 
                 ylabel = "AP2 Membrane Localization", ylabelsize = 12, 
-                limits = ((0.0, 2000.0), (0.0, 1.0)))
+                limits = (odeprob.tspan, (0.0, 1.0)))
 
     fft_ax = Axis(fig[1, 4:5], title = "FFT",
                 xlabel = "Period (s)", xlabelsize = 18, xtickformat = values -> ["$(round(Int, cld(1, value)))" for value in values], xscale = log10,
@@ -58,7 +78,6 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
     #< GRIDS ##
     fig[2, 1:3] = parameter_slider_grid = GridLayout()
     fig[2, 4:5] = species_slider_grid = GridLayout()
-    # fig[3, 4] = menu_grid = GridLayout()
     species_slider_grid[3, 1:2] = menu_grid = GridLayout()
     species_slider_grid[4, 1:2] = misc_grid =  GridLayout()
 
@@ -71,42 +90,49 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
     #     view(df, (df.K .< df.P) .& (df.Kmᴸᴷ .< df.Kmᴸᴾ), :)
     # ]
 
+    # function get_subset_indices(df)
+    #     subsets = [
+    #         (df.K .> df.P) .& (df.Kmᴸᴷ .> df.Kmᴸᴾ),
+    #         (df.K .> df.P) .& (df.Kmᴸᴷ .< df.Kmᴸᴾ),
+    #         (df.K .< df.P) .& (df.Kmᴸᴷ .> df.Kmᴸᴾ),
+    #         (df.K .< df.P) .& (df.Kmᴸᴷ .< df.Kmᴸᴾ)
+    #     ]
+    #     return [findall(subset) for subset in subsets]
+    # end
+    
+    # subset_indices = get_subset_indices(df)
 
-    function get_subset_indices(df)
+    # function get_matrix_subsets(indices, df)
+    #     df_matrix = permutedims(Matrix(df[!, Between(:kfᴸᴬ, :A)]))
+    #     return [df_matrix[:, idx] for idx in indices]
+    # end
+    # subsetted_matrices = get_matrix_subsets(subset_indices,df)
+
+
+    function get_matrix_subsets(df)
         subsets = [
             (df.K .> df.P) .& (df.Kmᴸᴷ .> df.Kmᴸᴾ),
             (df.K .> df.P) .& (df.Kmᴸᴷ .< df.Kmᴸᴾ),
             (df.K .< df.P) .& (df.Kmᴸᴷ .> df.Kmᴸᴾ),
             (df.K .< df.P) .& (df.Kmᴸᴷ .< df.Kmᴸᴾ)
         ]
-        return [findall(subset) for subset in subsets]
+        return [permutedims(Matrix(df[subset, Between(:kfᴸᴬ, :A)])) for subset in subsets]
     end
+    subsetted_matrices = get_matrix_subsets(df)
 
-    # Get vectors of indices for each subset
-    subset_indices = get_subset_indices(df)
 
-    # Make matrix for faster indexing
-    function get_subsetted_matrix(indices, df)
-        Matrix(df[indices, Between(:kfᴸᴬ, :A)]) |> permutedims |> eachcol
-    end
-    
-    subsetted_matrices = [get_subsetted_matrix(indices, df) for indices in subset_indices]
 
     option_labels = ["K > P, Kmᴸᴷ > Kmᴸᴾ", "K > P, Kmᴸᴷ < Kmᴸᴾ", "K < P, Kmᴸᴷ > Kmᴸᴾ", "K < P, Kmᴸᴷ < Kmᴸᴾ"]
-    # fig[3, 4:5] = menu_grid = GridLayout()
     menu_label = Label(menu_grid[1, 1:2], "Regime Selector", fontsize = 25, color = :black, valign = :top, tellheight = true)
     menu = Menu(menu_grid[2, 1:2], options = zip(option_labels, subsetted_matrices), default = "K > P, Kmᴸᴷ > Kmᴸᴾ", valign = :top, tellheight = false)
 
     #* Make observable for the data that is lifted from the menu selection
-    data = Observable{Any}(subsetted_matrices[1])
+    data_observable = Observable{Any}(subsetted_matrices[1])
 
-    on(menu.selection) do selection
-        data[] = selection
-    end
-    notify(menu.selection)
-
-
-
+    # data = lift(menu.selection) do selection
+    #     return selection
+    # end
+    
     #- Row slider
     #* Make row slider to cycle through the dataframe
     row_slider = Slider(fig[3, 2:end], range = 1:1:1000, startvalue = 1, horizontal = true, color_inactive = :pink, color_active = :red, color_active_dimmed = :pink, valign = :center, tellheight = true)
@@ -119,15 +145,15 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
     Label(fig[3, 1], row_slider_label, fontsize = 20, color = :black, valign = :top, tellheight = true)
 
     #* Make observable for the row number, returns vector of input parameters
-    row = lift(row_slider.value) do rownumber
-        # if nrow(data) == 0
-        #     return zeros(17)
-        # else
-        #     return collect(Float64, data[rownumber, Between(:kfᴸᴬ, :A)])
-        # end
-        subsetted_matrix = data[]
-        return subsetted_matrix[rownumber]
-    end
+    # row = lift(row_slider.value) do rownumber
+    #     # if nrow(data) == 0
+    #     #     return zeros(17)
+    #     # else
+    #     #     return collect(Float64, data[rownumber, Between(:kfᴸᴬ, :A)])
+    #     # end
+    #     subsetted_matrix = data[]
+    #     return subsetted_matrix[:, rownumber]
+    # end
 
 
     #- Reset button that resets the row to what the slider is at
@@ -138,6 +164,17 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
     end
 
 
+    on(menu.selection) do selection
+        data_observable[] = selection
+        notify(row_slider.value)
+    end
+    notify(menu.selection)
+
+
+    function logrange(start, stop, steps)
+        return 10 .^ range(log10(start), log10(stop), length=steps)
+    end
+
     slider_labels = names(df[!, Between(:kfᴸᴬ, :A)])
     parameter_names = @view slider_labels[1:13]
     species_names = @view slider_labels[14:end]
@@ -146,18 +183,26 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
 
     #- Parameter value sliders
     Label(parameter_slider_grid[1, 1:3], "Parameters", fontsize = 25)
-    # Label(fig[2, 1:3], "Parameters", fontsize = 25)
     #* Make slider grid with slider for each parameter in ind 
     parameter_sliders = SliderGrid(parameter_slider_grid[2, 1:3],
-                                ((label = label, range = range(param_lb[i], param_ub[i], 100000), startvalue = df[1, label]) for (i, label) in enumerate(parameter_names))...)
+                                ((label = label, range = logrange(param_lb[i], param_ub[i], 100000), startvalue = df[1, label]) for (i, label) in enumerate(parameter_names))...)
 
     # Adjust DF range 
     parameter_sliders.sliders[13].range = range(0.0, 10000.0, 100000)
 
 
     #- Have parameter sliders listen to row
-    on(row) do row
-        set_close_to!.(parameter_sliders.sliders, row[1:13])
+    # on(row) do row
+    #     new_parameters = view(row, 1:13)
+    #     set_close_to!.(parameter_sliders.sliders, new_parameters)
+    # end
+
+    on(row_slider.value) do rownumber
+        subsetted_matrix = data_observable[]
+        new_parameters = view(subsetted_matrix, 1:13, rownumber)
+
+        # new_parameters = view(row, 1:13)
+        set_close_to!.(parameter_sliders.sliders, new_parameters)
     end
 
     #* Makes the vector of observables (DIFFERENT FROM OBSERVABLE VECTOR)
@@ -166,12 +211,20 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
     #- Initial conditions sliders
     ic_lb, ic_ub = @views lb[14:end], ub[14:end]
     Label(species_slider_grid[1, 1:2], "Initial Conditions", fontsize = 25)
-    # Label(fig[2, 4:5], "Initial Conditions", fontsize = 25)
     species_sliders = SliderGrid(species_slider_grid[2, 1:2],
-                                ((label = label, range = range(ic_lb[i], ic_ub[i], 100000), startvalue = df[1, label]) for (i, label) in enumerate(species_names))...; valign = :top, tellheight = false)
+                                ((label = label, range = logrange(ic_lb[i], ic_ub[i], 100000), startvalue = df[1, label]) for (i, label) in enumerate(species_names))...; valign = :top, tellheight = false)
 
-    on(row) do row
-        set_close_to!.(species_sliders.sliders, row[14:17])
+    # on(row) do row
+    #     new_species = view(row, 14:17)
+    #     set_close_to!.(species_sliders.sliders, new_species)
+    # end
+
+    on(row_slider.value) do rownumber
+        subsetted_matrix = data_observable[]
+        new_species = view(subsetted_matrix, 14:17, rownumber)
+
+        # new_parameters = view(row, 1:13)
+        set_close_to!.(species_sliders.sliders, new_species)
     end
 
     species_slider_observables = [s.value for s in species_sliders.sliders]
@@ -234,9 +287,9 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
 
 
     #* Update function that takes the observables vector and resolves the ODE
-    function update_function(params)
-        sol = ode_solver(params)
-        return compute_Amem(sol)
+    function update_ode_solution(params)
+        ode_solver(params)
+        # return compute_Amem(sol)
     end
 
     testsol = ode_solver(collect(df[1, Between(:kfᴸᴬ, :A)]))
@@ -246,9 +299,12 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
 
     #* Make observable for AP2 Membrane Localization from calling the update function on the observable vector
     Amem = lift(observable_vector) do observables
-        update_function(observables)
+        compute_Amem(update_ode_solution(observables))
     end
 
+    # ode_sol = lift(observable_vector) do observables
+    #     ode_solver(observables)
+    # end
 
     function getFrequencies(timeseries::Vector{Float64})
         rfft_result = rfft(timeseries)
