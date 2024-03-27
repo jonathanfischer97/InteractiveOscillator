@@ -1,4 +1,11 @@
-function make_solver(prob::ODEProblem)
+function compute_Amem(sol::ODESolution)::Vector{Float64}
+    initialAP2 = sol.prob.u0[4] #* initial AP2 concentration
+    #* sum all AP2 species on the membrane and normalize by initial AP2 
+    map(sum, sol.u) ./ initialAP2 
+end
+
+
+function make_ode_solver(prob::ODEProblem)
 
     osys = prob.f.sys
 
@@ -8,13 +15,6 @@ function make_solver(prob::ODEProblem)
     num_tunable_parameters = length(tunable_parameters(osys; default = true))
 
     saved_idxs = get_Amem_indices(osys)
-
-    #* calculate first 10% of the tspan
-    tstart = prob.tspan[2] / 10
-    # println("tstart: $tstart")
-
-    #* solve the ODE and only save the last 90% of the solution
-    savepoints = tstart+0.1:0.1:prob.tspan[2]
 
     function solver(input)::ODESolution
 
@@ -32,13 +32,6 @@ function make_solver(prob::ODEProblem)
         solve(newprob, Rosenbrock23(); saveat = 0.1, save_idxs = saved_idxs, verbose=false, maxiters=1e6)
     end
     return solver
-end
-
-
-function compute_Amem(sol::ODESolution)::Vector{Float64}
-    initialAP2 = sol.prob.u0[4] #* initial AP2 concentration
-    #* sum all AP2 species on the membrane and normalize by initial AP2 
-    map(sum, sol.u) ./ initialAP2 
 end
 
 

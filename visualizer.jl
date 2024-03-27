@@ -7,78 +7,68 @@ begin
     using OrdinaryDiffEq
     using FFTW
     using StatsBase
+    using GLMakie
+    GLMakie.activate!(; title = "Interactive Oscillator Visualizer", float = true, focus_on_show = true)
+    theme = merge(theme_ggplot2(), theme_latexfonts())
+    set_theme!(theme)
 end
 
+#* Set the script directory to the current directory
+script_dir = @__DIR__
+cd(script_dir)
 
-include("full_model.jl")
-include("ode_solving_functions.jl")
-include("custom_peakfinder.jl")
-include("fitness_function_helpers.jl")
+# Assert we are in the correct directory
+@assert basename(pwd()) == "InteractiveOscillator" 
+
+
+# Load dependencies
+begin
+    include("setup_functions/full_model.jl")
+    include("setup_functions/ode_solving_functions.jl")
+    include("setup_functions/custom_peakfinder.jl")
+    include("setup_functions/fitness_function_helpers.jl")
+    include("setup_functions/get_fitness.jl")
+    include("setup_functions/load_data.jl")
+end
 #> IMPORTS <#
 
+df = load_data()
 
-# LOAD DATA
-df = CSV.read("smalldata.csv", DataFrame)
+# function get_subset_indices(df)
+#     subsets = [
+#         (df.K .> df.P) .& (df.Kmᴸᴷ .> df.Kmᴸᴾ),
+#         (df.K .> df.P) .& (df.Kmᴸᴷ .< df.Kmᴸᴾ),
+#         (df.K .< df.P) .& (df.Kmᴸᴷ .> df.Kmᴸᴾ),
+#         (df.K .< df.P) .& (df.Kmᴸᴷ .< df.Kmᴸᴾ)
+#     ]
+#     return [findall(subset) for subset in subsets]
+# end
 
-
-
-using GLMakie
-theme = merge(theme_ggplot2(), theme_latexfonts())
-set_theme!(theme)
-
-function make_ode_solver(prob::ODEProblem)
-
-    osys = prob.f.sys
-
-    #* Get vector of all tunable parameters and states
-    tunable_variables = get_tunable_variables(osys)
-
-    num_tunable_parameters = length(tunable_parameters(osys; default = true))
-
-    saved_idxs = get_Amem_indices(osys)
-
-    function solver(input)::ODESolution
-
-        #* Create a mapping the tunable variables to their values
-        tunable_var_value_map = [var => val for (var, val) in zip(tunable_variables, input)]
-
-        #* Split the input into parameters and initial conditions
-        params = @view tunable_var_value_map[1:num_tunable_parameters]
-        u0 = @view tunable_var_value_map[num_tunable_parameters+1:end]        
-
-        #* Remake the problem with the new parameters
-        newprob = remake(prob; p = params, u0 = u0)
-
-        #* Solve the problem and return the solution
-        solve(newprob, Rosenbrock23(); saveat = 0.1, save_idxs = saved_idxs, verbose=false, maxiters=1e6)
-    end
-    return solver
-end
+# subset_indices = get_subset_indices(df)
 
 
+# df1 = @view df[(df.K .> df.P) .& (df.Kmᴸᴷ .> df.Kmᴸᴾ), :]
 
-function get_fitness(fftData)
-    #* get the indexes of the peaks in the fft
-    fft_peakindexes, fft_peakvals = findmaxpeaks(fftData) 
+# df1_indices = [rownumber(row) for row in eachrow(df1)]
 
-    #* if there is no signal in the frequency domain, return 0.0s
-    if isempty(fft_peakvals)
-        return [0.0, 0.0]
-    end
 
-    normalized_peakvals = fft_peakvals ./ maximum(fft_peakvals)
-    sum_of_peakvals = sum(normalized_peakvals)
+# function get_df_indices(df, f)
+#     indices = Int[]
+#     for (i, row) in enumerate(eachrow(df))
+#         if f(row)
+#             push!(indices, i)
+#         end
+#     end
+#     return indices
+# end
 
-    #* get the summed standard deviation of the peaks in frequency domain
-    standard_deviation = getSTD(fft_peakindexes, fftData) / sum_of_peakvals
+# indices = get_df_indices(df, (row) -> row.K > row.P && row.Kmᴸᴷ > row.Kmᴸᴾ)
 
-    #* get the summed difference between the first and last peaks in frequency domain
-    # sum_diff = OscTools.getDif(fft_peakvals) 
-    sum_diff = maximum(fft_peakvals) / sum_of_peakvals
+# dfrow = df[1, :]
 
-    #* fitness is the sum of the standard deviation and the difference between the first and last peaks
-    return [sum_diff, standard_deviation] #.* 1e2
-end
+# testrow = (row) -> row.K > row.P && row.Kmᴸᴷ > row.Kmᴸᴾ
+
+# testrow(dfrow)
 
 #- Plots interactive Makie timeseries plot with sliders for each parameter
 function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
@@ -88,7 +78,7 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
     #* Make solver function from ODEProblem
     ode_solver = make_ode_solver(odeprob);
 
-
+    println("Plotting...")
     fig = Figure(; size = (1200, 900));
     time_ax = Axis(fig[1, 1:3], title = "ODE Solution",
                 xlabel = "Time (s)", xlabelsize = 18, 
@@ -102,20 +92,26 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
 
 
     #- Menu to select different regime groupings of the DataFrame
-    subset_functions = @views [
-        df[(df.K .> df.P) .& (df.Kmᴸᴷ .> df.Kmᴸᴾ), :],
-        df[(df.K .> df.P) .& (df.Kmᴸᴷ .< df.Kmᴸᴾ), :],
-        df[(df.K .< df.P) .& (df.Kmᴸᴷ .> df.Kmᴸᴾ), :],
-        df[(df.K .< df.P) .& (df.Kmᴸᴷ .< df.Kmᴸᴾ), :]
+    # subset_views = @views [
+    #     df[(df.K .> df.P) .& (df.Kmᴸᴷ .> df.Kmᴸᴾ), :],
+    #     df[(df.K .> df.P) .& (df.Kmᴸᴷ .< df.Kmᴸᴾ), :],
+    #     df[(df.K .< df.P) .& (df.Kmᴸᴷ .> df.Kmᴸᴾ), :],
+    #     df[(df.K .< df.P) .& (df.Kmᴸᴷ .< df.Kmᴸᴾ), :]
+    # ]
+    subset_views = [
+        view(df, (df.K .> df.P) .& (df.Kmᴸᴷ .> df.Kmᴸᴾ), :),
+        view(df, (df.K .> df.P) .& (df.Kmᴸᴷ .< df.Kmᴸᴾ), :),
+        view(df, (df.K .< df.P) .& (df.Kmᴸᴷ .> df.Kmᴸᴾ), :),
+        view(df, (df.K .< df.P) .& (df.Kmᴸᴷ .< df.Kmᴸᴾ), :)
     ]
+
     option_labels = ["K > P, Kmᴸᴷ > Kmᴸᴾ", "K > P, Kmᴸᴷ < Kmᴸᴾ", "K < P, Kmᴸᴷ > Kmᴸᴾ", "K < P, Kmᴸᴷ < Kmᴸᴾ"]
     fig[3, 3:4] = menu_grid = GridLayout()
     menu_label = Label(menu_grid[1, 1:2], "Regime", fontsize = 25, color = :black, valign = :top)
-    menu = Menu(menu_grid[2, 1:2], options = zip(option_labels, subset_functions), default = "K > P, Kmᴸᴷ > Kmᴸᴾ", valign = :center)
+    menu = Menu(menu_grid[2, 1:2], options = zip(option_labels, subset_views), default = "K > P, Kmᴸᴷ > Kmᴸᴾ", valign = :center)
 
-    #* Technically just a subsetting function, because making an Observable DataFrame behaves weirdly
-    # df_subsetter = Observable{Any}(subset_functions[1])
-    data = Observable{Any}(subset_functions[1])
+    #* Make observable for the data that is lifted from the menu selection
+    data = Observable{Any}(subset_views[1])
 
     on(menu.selection) do selection
         data[] = selection
@@ -124,13 +120,11 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
 
 
 
-    
     #- Row slider
     #* Make row slider to cycle through the dataframe
     row_slider = Slider(fig[5, 1:4], range = 1:1:1000, startvalue = 1, horizontal = true, color_inactive = :pink, color_active = :red, color_active_dimmed = :pink)
 
     row_slider_label = lift(row_slider.value) do rownumber
-        # n_data = nrow(subsetter(df))
         return "Row $(rownumber)/1000"
     end 
 
@@ -138,12 +132,11 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
     Label(fig[6, 1:4], row_slider_label, fontsize = 20, color = :black)
 
     #* Make observable for the row number, returns vector of input parameters
-    row = lift(row_slider.value) do rownumber
-        # data = subsetter(df)
-        if isempty(df)
+    row = lift(row_slider.value, data) do rownumber, data
+        if nrow(data) == 0
             return zeros(17)
         else
-            return collect(Float64, df[rownumber, Between(:kfᴸᴬ, :A)])
+            return collect(Float64, data[rownumber, Between(:kfᴸᴬ, :A)])
         end
     end
 
@@ -294,7 +287,11 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
     fig
 end
 
-plot_interactive_parameters_timeseries(df)
+fig = plot_interactive_parameters_timeseries(load_data())
+display(fig)
+
+println("Press enter to exit")
+readline()
 
 
 
