@@ -10,20 +10,15 @@ begin
 end
 
 
-include("/Users/jonathanfischer/Desktop/ThesisStuff/GeometricallyTunableOscillator/InteractiveOscillator/full_model.jl")
-include("/Users/jonathanfischer/Desktop/ThesisStuff/GeometricallyTunableOscillator/InteractiveOscillator/ode_solving_functions.jl")
-include("/Users/jonathanfischer/Desktop/ThesisStuff/GeometricallyTunableOscillator/InteractiveOscillator/custom_peakfinder.jl")
-include("/Users/jonathanfischer/Desktop/ThesisStuff/GeometricallyTunableOscillator/InteractiveOscillator/fitness_function_helpers.jl")
+include("full_model.jl")
+include("ode_solving_functions.jl")
+include("custom_peakfinder.jl")
+include("fitness_function_helpers.jl")
 #> IMPORTS <#
 
 
-# using Downloads
-
-# data_url = "https://drive.google.com/file/d/1ZgkrAB1kp6oMArTVfdYdqd_oMdJeat6m/uc?export=download"
-# data = Downloads.download(data_url)
-# df = CSV.File(data)
-
-df = CSV.read("/Users/jonathanfischer/Desktop/ThesisStuff/GeometricallyTunableOscillator/data/smalldata.csv", DataFrame)
+# LOAD DATA
+df = CSV.read("smalldata.csv", DataFrame)
 
 
 
