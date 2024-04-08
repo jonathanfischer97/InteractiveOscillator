@@ -1,8 +1,7 @@
 #< FITNESS FUNCTION HELPER FUNCTIONS ##
 """Get average difference of the first and last peak values from the FFT of the solution"""
 function getDif(peakvals::Vector{Float64})
-    # (peakvals[begin] - peakvals[end])/length(peakvals)
-    sum(abs.(diff(peakvals)))/length(peakvals)
+    sum(abs.(diff(peakvals)))#/length(peakvals)
 end
 
 """Get summed average standard deviation of peaks values from the FFT of the solution"""
@@ -22,10 +21,8 @@ end
     getFrequencies(timeseries)
 Return the real-valued FFT of a timeseries, will be half the length of the timeseries
 """
-function getFrequencies(timeseries::Vector{Float64})#, rfft_plan)
-    # sampled_timeseries = @view timeseries[1:jump:end]
+function getFrequencies(timeseries::Vector{Float64})
     rfft_result = rfft(timeseries)
-    # rfft_result = rfft_plan * timeseries
     norm_val = length(timeseries)/ 2 #* normalize by length of timeseries
     abs.(rfft_result) ./ norm_val
 end
