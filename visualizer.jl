@@ -5,9 +5,10 @@ begin
     using Catalyst
     using ModelingToolkit
     using OrdinaryDiffEq
-    using FFTW
+    # using FFTW
     using StatsBase
     using GLMakie
+    using SymbolicIndexingInterface
     GLMakie.activate!(; title = "Interactive Oscillator Visualizer", float = true, focus_on_show = true)
     theme = merge(theme_ggplot2(), theme_latexfonts())
     set_theme!(theme)
@@ -25,55 +26,29 @@ cd(script_dir)
 begin
     include("setup_functions/full_model.jl")
     include("setup_functions/ode_solving_functions.jl")
-    include("setup_functions/custom_peakfinder.jl")
-    include("setup_functions/fitness_function_helpers.jl")
-    include("setup_functions/get_fitness.jl")
+    # include("setup_functions/fitness_functions/helpers/custom_peakfinder.jl")
+    # include("setup_functions/fitness_functions/helpers/fitness_function_helpers.jl")
+    # include("setup_functions/fitness_functions/FitnessFunction.jl")
     include("setup_functions/load_data.jl")
 end
 #> IMPORTS <#
 
-# 3^9/10
 
-# odeprob = make_ODEProblem((;); tend = 1968.2);
-
-# ode_solver = make_ode_solver(odeprob);
-
-# df = load_data()
-
-# ind = collect(df[1, Between(:kfᴸᴬ, :A)])
-
-# using BenchmarkTools
-# @benchmark ode_solver($ind)
-
-# sol = ode_solver(ind)
-
-# sol[1,:]
-
-# sol[1,:]
-# Array(sol)
-# typeof(sol[1,:])
-# sol.u
-# lines(sol.t, sol)
 
 #- Plots interactive Makie timeseries plot with sliders for each parameter
 function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
-    #* Make ODEProblem from ReactionSystem
-    odeprob = make_ODEProblem((;));
-
-    #* Make solver function from ODEProblem
-    ode_solver = make_ode_solver(odeprob);
 
     println("Plotting...")
     fig = Figure(; size = (1200, 900));
-    time_ax = Axis(fig[1, 1:3], title = "ODE Solution",
+    time_ax = Axis(fig[1, 1:5], title = "ODE Solution",
                 xlabel = "Time (s)", xlabelsize = 18, 
                 ylabel = "AP2 Membrane Localization", ylabelsize = 12, 
-                limits = (odeprob.tspan, (0.0, 1.0)))
+                limits = (ODEPROB.tspan, (0.0, 1.0)))
 
-    fft_ax = Axis(fig[1, 4:5], title = "FFT",
-                xlabel = "Period (s)", xlabelsize = 18, xtickformat = values -> ["$(round(Int, cld(1, value)))" for value in values], xscale = log10,
-                ylabel = "Power", ylabelsize = 18,
-                limits = ((0.0001, 1.0), nothing))
+    # fft_ax = Axis(fig[1, 4:5], title = "FFT",
+    #             xlabel = "Period (s)", xlabelsize = 18, xtickformat = values -> ["$(round(Int, cld(1, value)))" for value in values], xscale = log10,
+    #             ylabel = "Power", ylabelsize = 18,
+    #             limits = ((0.0001, 1.0), nothing))
 
     #< GRIDS ##
     fig[2, 1:3] = parameter_slider_grid = GridLayout()
@@ -116,7 +91,7 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
             (df.K .< df.P) .& (df.Kmᴸᴷ .> df.Kmᴸᴾ),
             (df.K .< df.P) .& (df.Kmᴸᴷ .< df.Kmᴸᴾ)
         ]
-        return [permutedims(Matrix(df[subset, Between(:kfᴸᴬ, :A)])) for subset in subsets]
+        return [permutedims(Matrix(df[subset, Between(:kfᴸᴬ, :APLp)])) for subset in subsets]
     end
     subsetted_matrices = get_matrix_subsets(df)
 
@@ -172,20 +147,21 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
 
 
     function logrange(start, stop, steps)
-        return 10 .^ range(log10(start), log10(stop), length=steps)
+        startval = start == 0.0 ? 1.0 : log10(start)
+        return 10 .^ range(startval, log10(stop), length=steps)
     end
 
-    slider_labels = names(df[!, Between(:kfᴸᴬ, :A)])
+    slider_labels = names(df[!, Between(:kfᴸᴬ, :APLp)])
     parameter_names = @view slider_labels[1:13]
     species_names = @view slider_labels[14:end]
-    lb, ub = get_tunable_bounds(odeprob.f.sys)
-    param_lb, param_ub = @views lb[1:13], ub[1:13]
+    # lb, ub = get_tunable_bounds(odeprob.f.sys)
+    # param_lb, param_ub = @views lb[1:13], ub[1:13]
 
     #- Parameter value sliders
     Label(parameter_slider_grid[1, 1:3], "Parameters", fontsize = 25)
     #* Make slider grid with slider for each parameter in ind 
     parameter_sliders = SliderGrid(parameter_slider_grid[2, 1:3],
-                                ((label = label, range = logrange(param_lb[i], param_ub[i], 100000), startvalue = df[1, label]) for (i, label) in enumerate(parameter_names))...)
+                                ((label = label, range = logrange(INPUT_BOUNDS[Symbol(label)]..., 100000), startvalue = df[1, Symbol(label)]) for (i, label) in enumerate(parameter_names))...)
 
     # Adjust DF range 
     parameter_sliders.sliders[13].range = range(0.0, 10000.0, 100000)
@@ -209,10 +185,10 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
     parameter_slider_observables = [s.value for s in parameter_sliders.sliders]
 
     #- Initial conditions sliders
-    ic_lb, ic_ub = @views lb[14:end], ub[14:end]
+    # ic_lb, ic_ub = @views lb[14:end], ub[14:end]
     Label(species_slider_grid[1, 1:2], "Initial Conditions", fontsize = 25)
     species_sliders = SliderGrid(species_slider_grid[2, 1:2],
-                                ((label = label, range = logrange(ic_lb[i], ic_ub[i], 100000), startvalue = df[1, label]) for (i, label) in enumerate(species_names))...; valign = :top, tellheight = false)
+                                ((label = label, range = logrange(INPUT_BOUNDS[Symbol(label)]..., 100000), startvalue = df[1, Symbol(label)]) for (i, label) in enumerate(species_names))...; valign = :top, tellheight = false)
 
     # on(row) do row
     #     new_species = view(row, 14:17)
@@ -286,53 +262,57 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
 
 
 
-    #* Update function that takes the observables vector and resolves the ODE
-    function update_ode_solution(params)
-        ode_solver(params)
-        # return compute_Amem(sol)
-    end
+    # #* Update function that takes the observables vector and resolves the ODE
+    # function update_ode_solution(params)
+    #     solve_odes(params)
+    #     # return compute_Amem(sol)
+    # end
 
-    testsol = ode_solver(collect(df[1, Between(:kfᴸᴬ, :A)]))
-    frequencies = [i*10/length(testsol) for i in 1:(length(testsol)/2)+1]
+    # testsol = solve_odes(collect(df[1, Between(:kfᴸᴬ, :APLp)]))
+    # frequencies = [i*10/length(testsol) for i in 1:(length(testsol)/2)+1]
     # periods = 1 ./ frequencies
 
 
     #* Make observable for AP2 Membrane Localization from calling the update function on the observable vector
     Amem = lift(observable_vector) do observables
-        compute_Amem(update_ode_solution(observables))
+        get_Amem(solve_odes(observables))
     end
 
     # ode_sol = lift(observable_vector) do observables
     #     ode_solver(observables)
     # end
 
-    function getFrequencies(timeseries::Vector{Float64})
-        rfft_result = rfft(timeseries)
-        norm_val = length(timeseries)/ 2 #* normalize by length of timeseries
-        abs.(rfft_result) ./ norm_val
-    end
+    # function getFrequencies(timeseries::Vector{Float64})
+    #     rfft_result = RFFT_PLAN * timeseries
+    #     norm_val = length(timeseries)/ 2 #* normalize by length of timeseries
+    #     abs.(rfft_result) ./ norm_val
+    # end
 
-    fft_Amem = lift(Amem) do Amem
-        getFrequencies(Amem)
-    end
+    # fft_Amem = lift(Amem) do Amem
+    #     getFrequencies(Amem)
+    # end
 
-    diff_and_std_label = lift(fft_Amem) do fft_Amem
-        difs, stds = round.(get_fitness(fft_Amem);digits = 5)
-        fitness = round(difs + stds; digits = 5)
-        return "Diff: $(difs)\nSTD: $(stds)\nFitness: $fitness"
-    end
-    Label(fig[1, 4:5], diff_and_std_label, fontsize = 20, color = :black, valign = :top, tellwidth = false, tellheight=false)
+    # diff_and_std_label = lift(fft_Amem) do fft_Amem
+    #     difs, stds = round.(get_fitness(fft_Amem);digits = 5)
+    #     fitness = round(difs + stds; digits = 5)
+    #     return "Diff: $(difs)\nSTD: $(stds)\nFitness: $fitness"
+    # end
+    # Label(fig[1, 4:5], diff_and_std_label, fontsize = 20, color = :black, valign = :top, tellwidth = false, tellheight=false)
 
-    ln = lines!(time_ax, testsol.t, Amem, color = regime_color, linewidth = 3)
-    lines!(fft_ax, frequencies, fft_Amem, color = regime_color, linewidth = 3)
+    ln = lines!(time_ax, range(0.0, ODEPROB.tspan[2], length(Amem.val)), Amem, color = regime_color, linewidth = 3)
+    # lines!(fft_ax, frequencies, fft_Amem, color = regime_color, linewidth = 3)
     fig
 end
 
+data = load_data()
+data.P
+
+names(data)
 fig = plot_interactive_parameters_timeseries(load_data())
 display(fig)
 
 println("Press enter to exit")
 readline()
 
-
+ODEPROB.tspan
 
