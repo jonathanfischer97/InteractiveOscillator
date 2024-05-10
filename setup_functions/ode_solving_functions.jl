@@ -2,7 +2,7 @@ function solve_odes(individual, odeprob::ODEProblem = ODEPROB)
     newprob = remake_odeprob(individual, odeprob)
     # saved_values = SavedValues(Float64, Float64)
     # cb = SavingCallback(save_func, saved_values, saveat=0.1)
-    sol = solve(newprob, Rodas4P(chunk_size=16))#, callback=cb)
+    sol = solve(newprob, Rosenbrock23(), saveat =0.1)#, callback=cb)
 
     return sol
 end

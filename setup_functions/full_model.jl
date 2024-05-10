@@ -29,9 +29,8 @@ const ZERO_SPECIES_SYMBOLS = [:Lp, :LpA, :LK, :LpP, :LpAK, :LpAP, :LpAKL, :LpAPL
 # const SOLVABLE_SPECIES_SYMBOLS = [:L, :K, :P, :A, :Lp, :LpA, :LK, :LpAK, :LpAP, :LpAKL, :LpAPLp, :AK]
 const ALL_SPECIES_SYMBOLS = vcat(NONZERO_SPECIES_SYMBOLS, ZERO_SPECIES_SYMBOLS)
 
-# const GENE_SYMBOLS = vcat(PARAMETER_SYMBOLS, NONZERO_SPECIES_SYMBOLS)
 # const ODE_SYMBOLS = vcat(PARAMETERS_AND_CONSTANTS_SYMBOLS, SOLVABLE_SPECIES_SYMBOLS)
-const ODE_SYMBOLS = vcat(PARAMETER_SYMBOLS, ALL_SPECIES_SYMBOLS)
+const ODE_SYMBOLS = vcat(PARAMETER_SYMBOLS, NONZERO_SPECIES_SYMBOLS)
 
 # const IGNORED_SYMBOLS = setdiff(vcat(PARAMETERS_AND_CONSTANTS_SYMBOLS, ALL_SPECIES_SYMBOLS), ODE_SYMBOLS)
 
@@ -155,6 +154,21 @@ const OSYS = get_osys(ODEPROB)
 
 
 const get_Amem = getu(ODEPROB, :Amem)
+
+const get_L = getu(ODEPROB, :L)
+const get_K = getu(ODEPROB, :K)
+const get_P = getu(ODEPROB, :P)
+const get_A = getu(ODEPROB, :A)
+const get_LpA = getu(ODEPROB, :LpA)
+const get_LpAK = getu(ODEPROB, :LpAK)
+const get_LpAP = getu(ODEPROB, :LpAP)
+const get_LpAKL = getu(ODEPROB, :LpAKL)
+const get_LpAPLp = getu(ODEPROB, :LpAPLp)
+const get_AK = getu(ODEPROB, :AK)
+const get_AP = getu(ODEPROB, :AP)
+const get_AKL = getu(ODEPROB, :AKL)
+const get_APLp = getu(ODEPROB, :APLp)
+
 
 
 # const RFFT_PLAN = plan_rfft(zeros(19683); flags = FFTW.PATIENT)
