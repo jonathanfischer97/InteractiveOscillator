@@ -309,3 +309,6 @@ scatter(data.Kmᴸᴷ./data.Kmᴸᴾ, data.K./data.P, legend = false, axis = (;x
 
 scatter(data.DF, data.Kdᴸᴬ, legend = false, axis = (;xscale = log10, yscale = identity))
 
+colormap = Vector(data.Amplitude)
+scatter(data.K ./ data.P, data.Kmᴸᴷ./data.Kmᴸᴾ, color = colormap, legend = false, axis = (;xscale = log10, yscale = log10, xlabel = "K/P", ylabel = "Kmᴸᴷ/Kmᴸᴾ"))
+
