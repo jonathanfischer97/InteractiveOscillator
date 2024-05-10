@@ -52,36 +52,48 @@ function make_fullrn()
         @species L(t) = $(INPUT_DEFAULTS[:L]) [description = "PIP"; bounds = $(INPUT_BOUNDS[:L])] K(t) = $(INPUT_DEFAULTS[:K]) [description = "PIP5K"; bounds = $(INPUT_BOUNDS[:K])] P(t) = $(INPUT_DEFAULTS[:P]) [description = "Synaptojanin"; bounds = $(INPUT_BOUNDS[:P])] A(t) = $(INPUT_DEFAULTS[:A]) [description = "AP2"; bounds = $(INPUT_BOUNDS[:A])] Lp(t) = 0.0 [description = "PIP2"; tunable = false] LpA(t) = 0.0 [description = "PIP2-AP2"; tunable = false] LK(t) = 0.0 [description = "PIP-Kinase"; tunable = false] LpP(t) = 0.0 [description = "PIP2-Phosphatase"; tunable = false] LpAK(t) = 0.0 [description = "PIP2-AP2-Kinase"; tunable = false] LpAP(t) = 0.0 [description = "PIP2-AP2-Phosphatase"; tunable = false] LpAKL(t) = 0.0 [description = "PIP2-AP2-Kinase-PIP"; tunable = false] LpAPLp(t) = 0.0 [description = "PIP2-AP2-Phosphatase-PIP2"; tunable = false] AK(t) = 0.0 [description = "AP2-Kinase"; tunable = false] AP(t) = 0.0 [description = "AP2-Phosphatase"; tunable = false] AKL(t) = 0.0 [description = "AP2-Kinase-PIP"; tunable = false] APLp(t) = 0.0 [description = "AP2-Phosphatase-PIP2"; tunable = false] 
 
 
-        #* ALIASES: L = PIP, Lp = PIP2, K = Kinase, P = Phosphatase, A = AP2 
-        #* reactions between the same binding interfaces will have the same rate constant no matter the dimensionality or complex
-        #* DF is the dimensionality factor that scales the 2D rate constants, and is proportional to the membrane surface to volume ratio
-        (kfᴸᴷ,krᴸᴷ), L + K <--> LK # L binding to kinase
-        kcatᴸᴷ, LK --> Lp + K # L phosphorylation by kinase into Lp
-        (kfᴸᴬ,krᴸᴬ), Lp + A <--> LpA # Lp binding to AP2 adaptor 
-        (kfᴬᴷ,krᴬᴷ), LpA + K <--> LpAK # Membrane-bound adaptor binding to kinase
-        (kfᴸᴷ*DF,krᴸᴷ), LpAK + L <--> LpAKL # 2D reaction: Membrane-bound kinase binds to L with greater affinity as determined by DF
-        kcatᴸᴷ, LpAKL --> Lp + LpAK # L phosphorylation by kinase into Lp, same as 3D: first order reactions aren't dependent on dimensionality 
-        (kfᴸᴾ,krᴸᴾ), Lp + P <--> LpP # Lp binding to phosphatase 
-        kcatᴸᴾ, LpP --> L + P # L dephosphorylation by phosphatase
-        (kfᴬᴾ,krᴬᴾ), LpA + P <--> LpAP # Membrane-bound adaptor binding to phosphatase 
-        (kfᴸᴾ*DF,krᴸᴾ), Lp + LpAP <--> LpAPLp # 2D reaction: Membrane-bound phosphatase binds to Lp with greater affinity as determined by DF
-        kcatᴸᴾ, LpAPLp --> L + LpAP # L dephosphorylation by phosphatase, same as 3D: first order reactions aren't dependent on dimensionality
+        #* Phosphorylation Reactions
+        (kfᴸᴷ, krᴸᴷ), L + K <--> LK                   # L binding to kinase
+        kcatᴸᴷ, LK --> Lp + K                        # L phosphorylation by kinase into Lp
 
-        #* peripheral reactions, just need to be included in the model for conservation and balance
-        (kfᴸᴬ,krᴸᴬ), Lp + AK <--> LpAK
-        (kfᴸᴬ*DF,krᴸᴬ), Lp + AKL <--> LpAKL
-        (kfᴸᴬ,krᴸᴬ), Lp + AP <--> LpAP
-        (kfᴸᴬ*DF,krᴸᴬ), Lp + APLp <--> LpAPLp
-        (kfᴬᴷ,krᴬᴷ), A + K <--> AK
-        (kfᴬᴾ,krᴬᴾ), A + P <--> AP
-        (kfᴬᴷ,krᴬᴷ), A + LK <--> AKL
-        (kfᴬᴾ,krᴬᴾ), A + LpP <--> APLp
-        (kfᴬᴷ*DF,krᴬᴷ), LpA + LK <--> LpAKL
-        (kfᴬᴾ*DF,krᴬᴾ), LpA + LpP <--> LpAPLp
-        (kfᴸᴷ,krᴸᴷ), AK + L <--> AKL #binding of kinase to lipid
-        kcatᴸᴷ, AKL --> Lp + AK #phosphorylation of lipid
-        (kfᴸᴾ,krᴸᴾ), AP + Lp <--> APLp #binding of phosphatase to lipid
-        kcatᴸᴾ, APLp --> L + AP #dephosphorylation of lipid
+        (kfᴸᴷ * DF, krᴸᴷ), LpAK + L <--> LpAKL       # Membrane-bound K binds to L
+        kcatᴸᴷ, LpAKL --> Lp + LpAK                  # L phosphorylation by membrane-bound kinase
+
+        (kfᴸᴷ, krᴸᴷ), AK + L <--> AKL                # Peripheral: AK binds to L
+        kcatᴸᴷ, AKL --> Lp + AK                      # L phosphorylation by peripheral AK
+
+        #* Dephosphorylation Reactions
+        (kfᴸᴾ, krᴸᴾ), Lp + P <--> LpP                # Lp binding to phosphatase
+        kcatᴸᴾ, LpP --> L + P                        # L dephosphorylation by phosphatase
+
+        (kfᴸᴾ * DF, krᴸᴾ), Lp + LpAP <--> LpAPLp     # Membrane-bound phosphatase binds to Lp
+        kcatᴸᴾ, LpAPLp --> L + LpAP                  # L dephosphorylation by membrane-bound phosphatase
+
+        (kfᴸᴾ, krᴸᴾ), AP + Lp <--> APLp              # Peripheral: AP binds to Lp
+        kcatᴸᴾ, APLp --> L + AP                      # L dephosphorylation by peripheral AP
+
+        #* Binding and Ternary Complex Formation
+        (kfᴸᴬ, krᴸᴬ), Lp + A <--> LpA                # Lp binding to AP2
+
+        (kfᴬᴷ, krᴬᴷ), LpA + K <--> LpAK              # LpA binding to kinase
+        (kfᴬᴾ, krᴬᴾ), LpA + P <--> LpAP              # LpA binding to phosphatase
+
+        (kfᴸᴷ * DF, krᴸᴷ), LpAK + L <--> LpAKL       # Membrane-bound K binds to L
+
+        (kfᴸᴾ * DF, krᴸᴾ), Lp + LpAP <--> LpAPLp     # Membrane-bound P binds to Lp
+
+        (kfᴬᴷ * DF, krᴬᴷ), LpA + LK <--> LpAKL       # Peripheral: LpA binds to LK
+        (kfᴬᴾ * DF, krᴬᴾ), LpA + LpP <--> LpAPLp     # Peripheral: LpA binds to LpP
+
+        #- Peripheral Ternary Complexes
+        (kfᴸᴬ, krᴸᴬ), Lp + AK <--> LpAK
+        (kfᴸᴬ * DF, krᴸᴬ), Lp + AKL <--> LpAKL
+        (kfᴸᴬ, krᴸᴬ), Lp + AP <--> LpAP
+        (kfᴸᴬ * DF, krᴸᴬ), Lp + APLp <--> LpAPLp
+        (kfᴬᴷ, krᴬᴷ), A + K <--> AK
+        (kfᴬᴾ, krᴬᴾ), A + P <--> AP
+        (kfᴬᴷ, krᴬᴷ), A + LK <--> AKL
+        (kfᴬᴾ, krᴬᴾ), A + LpP <--> APLp
     end  
 
     return fullrn
