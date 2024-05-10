@@ -36,9 +36,12 @@ end
 
 function logrange(start, stop, steps)
     startval = start == 0.0 ? 1.0 : log10(start)
-    return 10 .^ range(startval, log10(stop), length=steps)
+    logrange_vec = 10 .^ range(startval, log10(stop), length=steps)
+    if start == 0.0
+        logrange_vec[1] = 0.0
+    end
+    return logrange_vec
 end
-
 
 
 
@@ -116,7 +119,7 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
         data_observable[] = selection
         notify(row_slider.value)
     end
-    # notify(menu.selection)
+    notify(menu.selection)
 
 
     slider_labels = names(df[!, DataFrames.Between(:kfᴸᴬ, :Lp)])
@@ -295,4 +298,14 @@ u0 = [:L => 15.4, :K => 0.44, :P => 1.98, :A => 1.48]
 newprob = remake(ODEPROB, p = p, u0 = u0)
 
 sol = solve(newprob, Rosenbrock23(), saveat = 0.1)
+
+
+
+
+data = CSV.read("/home/jfisch27/Desktop/ThesisStuff/GeometricallyTunableOscillator/data/alldata.csv", DataFrame)
+
+scatter(data.Kmᴸᴷ./data.Kmᴸᴾ, data.K./data.P, legend = false, axis = (;xscale = log10, yscale = log10))
+
+
+scatter(data.DF, data.Kdᴸᴬ, legend = false, axis = (;xscale = log10, yscale = identity))
 
