@@ -129,7 +129,7 @@ end
 
 Construct `ODEProblem` from `ReactionSystem` model, give named tuple to set parameters.
 """
-function make_ODEProblem(; tend::Float64=1968.2) #2187.0)
+function make_ODEProblem(; tend::Float64=1968.2) 
 
     rn = make_fullrn();
 
