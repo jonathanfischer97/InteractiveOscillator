@@ -41,8 +41,8 @@ end
 
 
 diffeq = (alg = Rosenbrock23(autodiff= false),  adaptive = false, dt = 0.01, abstol = 1e-10)
-dsprob = CoupledODEs(ODEPROB_FULL, diffeq)
-osys_full = get_osys(ODEPROB_FULL)
+dsprob = CoupledODEs(ODEPROB, diffeq)
+osys_full = OSYS
 
 
 # propertynames(osys_full)
@@ -51,8 +51,6 @@ osys_full = get_osys(ODEPROB_FULL)
 
 
 
-using GLMakie
-using ModelingToolkit
 # using Symbolics
 # Define which parameters will be interactive during the simulation
 parameter_sliders = Dict(
@@ -76,20 +74,21 @@ observables = [
 # Define what variables will be visualized as state space trajectory
 # same as above, any indexing works, but ensure to make the vector `Any`
 # so that integers are not converted to symbolic variables
-idxs = Any[osys_full.L, osys_full.LpAPLp, osys_full.LpA]
+idxs = Any[osys_full.Amem, osys_full.LpAPLp, osys_full.LpA]
 
 u0s = [
     # we can specify dictionaries, each mapping the variable to its value
     # un-specified variables get the value they currently have in `ds`
     Dict(),
-    Dict(:L => DEFAULT_TUPLE.Lp)
-    Dict(:L => DEFAULT_TUPLE.A, :A => DEFAULT_TUPLE.L)
+    Dict(:L => DEFAULT_TUPLE.Lp),
+    # Dict(:L => DEFAULT_TUPLE.A, :A => DEFAULT_TUPLE.L)
+    Dict(:K => DEFAULT_TUPLE.P, :P => DEFAULT_TUPLE.K)
 ]
 
 update_theme!(fontsize = 14)
 tail = 2000
 
-fig, dsobs = interactive_trajectory_timeseries(dsprob, observables;
+fig, dsobs = interactive_trajectory_timeseries(dsprob, observables, u0s;
     parameter_sliders, Δt = 0.01, tail, idxs,
     figure = (size = (1100, 650),)
 )

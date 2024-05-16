@@ -51,10 +51,14 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
 
     println("Plotting...")
     fig = Figure(; size = (1200, 900));
-    time_ax = Axis(fig[1, 1:5], title = "ODE Solution",
+    time_ax = Axis(fig[1, 1:3], title = "ODE Solution",
                 xlabel = "Time (s)", xlabelsize = 18, 
                 ylabel = "Percentage of Total AP2 %", ylabelsize = 14, yscale = Makie.pseudolog10,
                 limits = (ODEPROB.tspan, (0.0, 100.0)))
+
+    state_ax = Axis3(fig[1, 4:5], title = "State Space",
+                xlabel = "A", ylabel = "LpAK", zlabel = "LpAP", xlabelsize = 18, ylabelsize = 18, zlabelsize = 18,
+                limits = ((0.0, 110.0), (0.0, 110.0), (0.0, 110.0)))
 
 
     #< GRIDS ##
@@ -273,6 +277,9 @@ function plot_interactive_parameters_timeseries(df::AbstractDataFrame)
     axislegend(time_ax, position = :rt, labelsize = 20)
 
     # lines!(time_ax, sol, color = regime_color, linewidth = 3)
+
+    #* Plot the state space trajectory
+    lines!(state_ax, A, LpAK, LpAP, color = tspan, colormap = :heat, linewidth = 3)
 
     fig
 end
