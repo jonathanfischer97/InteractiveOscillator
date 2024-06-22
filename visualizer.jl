@@ -299,24 +299,3 @@ readline()
 
 
 
-p = [0.639, 0.376, 0.626, 87.8, 614.0, 43.0, 4.02, 6.63, 67.4, 0.501, 0.278, 0.001, 27.0]
-
-u0 = [:L => 15.4, :K => 0.44, :P => 1.98, :A => 1.48]
-
-newprob = remake(ODEPROB, p = p, u0 = u0)
-
-sol = solve(newprob, Rosenbrock23(), saveat = 0.1)
-
-
-
-
-data = CSV.read("/home/jfisch27/Desktop/ThesisStuff/GeometricallyTunableOscillator/data/alldata.csv", DataFrame)
-
-scatter(data.Kmᴸᴷ./data.Kmᴸᴾ, data.K./data.P, legend = false, axis = (;xscale = log10, yscale = log10))
-
-
-scatter(data.DF, data.Kdᴸᴬ, legend = false, axis = (;xscale = log10, yscale = identity))
-
-colormap = Vector(data.Amplitude)
-scatter(data.K ./ data.P, data.Kmᴸᴷ./data.Kmᴸᴾ, color = colormap, legend = false, axis = (;xscale = log10, yscale = log10, xlabel = "K/P", ylabel = "Kmᴸᴷ/Kmᴸᴾ"))
-
